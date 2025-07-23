@@ -185,7 +185,7 @@ async function carregarMetas() {
 
 function mostrarGrafico(metas) {
   const ctx = document.getElementById('graficoFaturamento').getContext('2d');
-  const dias = metas.map(m => m["Data"].split("-")[2]);
+  const dias = metas.map(m => m["Data"]?.split("-")[2]);
   const valores = metas.map(m => parseFloat(m["Realizado"].toString().replace(",", ".")));
 
   if (chart) chart.destroy();
@@ -242,7 +242,10 @@ document.getElementById("btnWhats").addEventListener("click", () => {
 });
 
 // Auto iniciar
-preencherDataOntem();
+window.onload = () => {
+  preencherDataOntem();
+  carregarMetas();
+};
 </script>
 
 </body>

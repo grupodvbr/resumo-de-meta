@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Metas de Receita - Grupo DV</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -49,18 +50,24 @@
       font-size: 0.95em;
     }
     #btnWhats {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 10px 16px;
       background-color: #25d366;
       color: white;
       border: none;
-      border-radius: 8px;
+      padding: 10px 16px;
       font-size: 1em;
+      border-radius: 8px;
       cursor: pointer;
     }
     #btnWhats:hover {
       background-color: #1ebe5f;
+    }
+    #graficoFaturamento {
+      max-width: 700px;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
     }
   </style>
 </head>
@@ -79,50 +86,53 @@
   </label>
   <label>
     Empresa:
-    <select id="empresaFiltro">
+    <select id="empresaFiltro" onchange="carregarMetas()">
       <option value="">Todas</option>
     </select>
   </label>
   <button onclick="carregarMetas()">Filtrar</button>
 </div>
 
-<!-- Botão WhatsApp abaixo dos filtros -->
-<div style="text-align: center; margin-top: -10px; margin-bottom: 20px;">
+<div style="text-align: center; margin-bottom: 20px;">
   <button id="btnWhats">📲 Enviar via WhatsApp</button>
+</div>
+
+<div id="graficoFaturamento">
+  <canvas id="graficoEmpresa"></canvas>
 </div>
 
 <div id="painelMetas"></div>
 
 <script>
-const urlBase = 'https://script.google.com/macros/s/AKfycbw3Jmf7iDyUAQaCX0lx-3NHlSQPwX0b8D7lU9wZ8u_MnZfqSoB1ni9jdqStbj10ywhL/exec'; // Substitua
+const urlBase = 'https://script.google.com/macros/s/AKfycbw3Jmf7iDyUAQaCX0lx-3NHlSQPwX0b8D7lU9wZ8u_MnZfqSoB1ni9jdqStbj10ywhL/exec';
+let chartInstance;
 
 function formatarNumero(valor) {
   return parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
-
 function formatarDataBR(dataISO) {
   const [y, m, d] = dataISO.split("-");
   return `${d}/${m}/${y}`;
 }
+function preencherDataOntem() {
+  const hoje = new Date();
+  hoje.setDate(hoje.getDate() - 1);
+  document.getElementById("dataInicio").value = hoje.toISOString().split("T")[0];
+}
+preencherDataOntem();
 
 async function carregarMetas() {
   const painel = document.getElementById("painelMetas");
   painel.innerHTML = "Carregando...";
+  const graficoContainer = document.getElementById("graficoFaturamento");
+  graficoContainer.style.display = "none";
 
   const dataInicio = document.getElementById("dataInicio").value;
   const dataFim = document.getElementById("dataFim").value;
   const empresa = document.getElementById("empresaFiltro").value;
 
-  const hoje = new Date();
-  const ontem = new Date(hoje);
-  ontem.setDate(hoje.getDate() - 1);
-  if (!dataInicio) document.getElementById("dataInicio").value = ontem.toISOString().split('T')[0];
-
-  const diaAtual = hoje.getDate();
-  const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-
   const params = new URLSearchParams();
-  if (dataInicio) params.append("dataInicio", document.getElementById("dataInicio").value);
+  if (dataInicio) params.append("dataInicio", dataInicio);
   if (dataFim) params.append("dataFim", dataFim);
   if (empresa) params.append("empresa", empresa);
 
@@ -130,10 +140,9 @@ async function carregarMetas() {
     const resposta = await fetch(`${urlBase}?${params.toString()}`);
     const metas = await resposta.json();
 
-    const empresas = [...new Set(metas.map(m => m.Empresa))];
     const select = document.getElementById("empresaFiltro");
     if (select.options.length <= 1) {
-      empresas.forEach(e => {
+      [...new Set(metas.map(m => m.Empresa))].forEach(e => {
         const opt = document.createElement("option");
         opt.value = e;
         opt.textContent = e;
@@ -142,17 +151,16 @@ async function carregarMetas() {
     }
 
     painel.innerHTML = "";
-    if (metas.length === 0) {
-      painel.innerHTML = "<p style='text-align:center'>Nenhum dado encontrado.</p>";
-      return;
-    }
+    if (!metas.length) return painel.innerHTML = "<p style='text-align:center'>Nenhum dado encontrado.</p>";
+
+    let dadosPorData = {};
 
     metas.forEach(linha => {
       const previsto = parseFloat(linha.Previsto);
-      const realizado = parseFloat(linha.Realizado.toString().replace(',', '.'));
-      const atingido = linha["Atingido"] || (previsto > 0 ? (realizado / previsto) * 100 : 0);
-      const previsaoFinal = linha["PrevisaoValor"] || ((realizado / diaAtual) * diasNoMes);
-      const previsaoPercentual = linha["PrevisaoPercentual"] || (previsto > 0 ? (previsaoFinal / previsto) * 100 : 0);
+      const realizado = parseFloat(linha.Realizado);
+      const atingido = linha.Atingido;
+      const previsaoFinal = linha.PrevisaoValor;
+      const previsaoPercentual = linha.PrevisaoPercentual;
 
       const div = document.createElement("div");
       div.className = "metas-box";
@@ -164,7 +172,33 @@ async function carregarMetas() {
         <p>📈 Previsão: R$ ${formatarNumero(previsaoFinal)} (${formatarNumero(previsaoPercentual)}%)</p>
       `;
       painel.appendChild(div);
+
+      if (empresa && linha.Empresa === empresa) {
+        const data = formatarDataBR(linha.Data);
+        dadosPorData[data] = (dadosPorData[data] || 0) + realizado;
+      }
     });
+
+    if (empresa && Object.keys(dadosPorData).length) {
+      graficoContainer.style.display = "block";
+      const ctx = document.getElementById("graficoEmpresa").getContext("2d");
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(dadosPorData),
+          datasets: [{
+            label: `Faturamento Diário - ${empresa}`,
+            data: Object.values(dadosPorData),
+            backgroundColor: 'rgba(0, 123, 255, 0.6)'
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
 
   } catch (e) {
     painel.innerHTML = "Erro ao carregar dados.";
@@ -175,22 +209,19 @@ async function carregarMetas() {
 document.getElementById("btnWhats").addEventListener("click", () => {
   const dataInicio = document.getElementById("dataInicio").value;
   const dataFim = document.getElementById("dataFim").value;
-  const periodo = (dataInicio && dataFim)
-    ? `${formatarDataBR(dataInicio)} - ${formatarDataBR(dataFim)}`
-    : "Período não informado";
+  const periodo = dataInicio && dataFim ? `${formatarDataBR(dataInicio)} - ${formatarDataBR(dataFim)}` : "Período não informado";
 
   const blocos = document.querySelectorAll(".metas-box");
   if (!blocos.length) return alert("Nenhum dado para enviar.");
 
   let mensagem = `📆 Resumo da meta de receitas ${periodo}\n\n`;
-
   blocos.forEach(box => {
     const titulo = box.querySelector("h2").innerText;
     const linhas = [...box.querySelectorAll("p")].map(p => p.innerText).join("\n");
     mensagem += `*${titulo}*\n${linhas}\n\n`;
   });
 
-  const numero = "5577999761436"; // Substitua
+  const numero = "5511999999999";
   const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem.trim())}`;
   window.open(link, "_blank");
 });

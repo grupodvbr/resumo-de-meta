@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Metas de Receita - Grupo DV</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #e8f5e9;
+      background: #f3fdf6;
       margin: 0;
       padding: 20px;
     }
@@ -15,7 +16,7 @@
       text-align: center;
     }
     .filtros {
-      max-width: 600px;
+      max-width: 700px;
       margin: 0 auto 20px;
       display: flex;
       flex-wrap: wrap;
@@ -34,11 +35,11 @@
       border: 1px solid #ccc;
     }
     .metas-box {
-      background: #d0f0d5;
+      background: #d9f3e4;
       border-radius: 10px;
       padding: 15px;
       margin: 10px auto;
-      max-width: 600px;
+      max-width: 700px;
       box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
     }
     .metas-box h2 {
@@ -48,9 +49,14 @@
       margin: 3px 0;
       font-size: 0.95em;
     }
+    canvas {
+      max-width: 700px;
+      margin: 10px auto;
+      display: block;
+    }
     #btnWhats {
       display: block;
-      margin: 20px auto 0;
+      margin: 20px auto;
       padding: 10px 15px;
       background-color: #25d366;
       color: white;
@@ -88,28 +94,35 @@
 
 <div id="painelMetas"></div>
 
+<canvas id="graficoMetas"></canvas>
+
 <button id="btnWhats">📲 Enviar via WhatsApp</button>
 
 <script>
-const urlBase = 'hhttps://script.google.com/macros/s/AKfycbwzf06F4FRObRUwfG5W6Lfb-Mk30Wz3KemPs6qKJwypYioeHXf9_BYy1PxUDlOHJ0Yf/exec'; // Substitua
+const urlBase = 'https://script.google.com/macros/s/AKfycbwzf06F4FRObRUwfG5W6Lfb-Mk30Wz3KemPs6qKJwypYioeHXf9_BYy1PxUDlOHJ0Yf/exec';
 
 function formatarNumero(valor) {
   return parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
-
 function formatarDataBR(dataISO) {
   const [y, m, d] = dataISO.split("-");
   return `${d}/${m}/${y}`;
 }
 
+window.onload = () => {
+  const hoje = new Date();
+  const ontem = new Date(hoje.setDate(hoje.getDate() - 1));
+  document.getElementById("dataInicio").value = ontem.toISOString().split('T')[0];
+  document.getElementById("dataFim").value = new Date().toISOString().split('T')[0];
+  carregarMetas();
+};
+
 async function carregarMetas() {
   const painel = document.getElementById("painelMetas");
   painel.innerHTML = "Carregando...";
-
   const dataInicio = document.getElementById("dataInicio").value;
   const dataFim = document.getElementById("dataFim").value;
   const empresa = document.getElementById("empresaFiltro").value;
-
   const hoje = new Date();
   const diaAtual = hoje.getDate();
   const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
@@ -122,7 +135,6 @@ async function carregarMetas() {
   try {
     const resposta = await fetch(`${urlBase}?${params.toString()}`);
     const metas = await resposta.json();
-
     const empresas = [...new Set(metas.map(m => m.Empresa))];
     const select = document.getElementById("empresaFiltro");
     if (select.options.length <= 1) {
@@ -133,12 +145,11 @@ async function carregarMetas() {
         select.appendChild(opt);
       });
     }
-
     painel.innerHTML = "";
-    if (metas.length === 0) {
-      painel.innerHTML = "<p style='text-align:center'>Nenhum dado encontrado.</p>";
-      return;
-    }
+    if (!metas.length) return painel.innerHTML = "<p style='text-align:center'>Nenhum dado encontrado.</p>";
+
+    const graficoLabels = [];
+    const graficoDados = [];
 
     metas.forEach(linha => {
       const previsto = parseFloat(linha.Previsto);
@@ -157,6 +168,29 @@ async function carregarMetas() {
         <p>📈 Previsão: R$ ${formatarNumero(previsaoFinal)} (${formatarNumero(previsaoPercentual)}%)</p>
       `;
       painel.appendChild(div);
+      graficoLabels.push(linha.Empresa);
+      graficoDados.push(atingido.toFixed(2));
+    });
+
+    new Chart(document.getElementById("graficoMetas"), {
+      type: 'bar',
+      data: {
+        labels: graficoLabels,
+        datasets: [{
+          label: '% Atingido',
+          data: graficoDados,
+          backgroundColor: '#4caf50'
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, max: 120 }
+        },
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Atingimento das Metas (%)' }
+        }
+      }
     });
 
   } catch (e) {
@@ -168,28 +202,19 @@ async function carregarMetas() {
 document.getElementById("btnWhats").addEventListener("click", () => {
   const dataInicio = document.getElementById("dataInicio").value;
   const dataFim = document.getElementById("dataFim").value;
-  const periodo = (dataInicio && dataFim)
-    ? `${formatarDataBR(dataInicio)} a ${formatarDataBR(dataFim)}`
-    : "Período não informado";
-
+  const periodo = `${formatarDataBR(dataInicio)} - ${formatarDataBR(dataFim)}`;
   const blocos = document.querySelectorAll(".metas-box");
   if (!blocos.length) return alert("Nenhum dado para enviar.");
-
-  let mensagem = `📊 *Resumo de Metas - ${periodo}*\n\n`;
-
+  let mensagem = `📆 Resumo da meta de receitas ${periodo}\n\n`;
   blocos.forEach(box => {
     const titulo = box.querySelector("h2").innerText;
     const linhas = [...box.querySelectorAll("p")].map(p => p.innerText).join("\n");
-    mensagem += `*${titulo}*\n${linhas}\n\n`;
+    mensagem += `${titulo}\n${linhas}\n\n`;
   });
-
-  const numero = "5511999999999"; // Substitua pelo WhatsApp desejado
+  const numero = "5511999999999"; // Substitua com seu número de WhatsApp
   const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem.trim())}`;
   window.open(link, "_blank");
 });
-
-// Carrega os dados automaticamente na primeira vez
-carregarMetas();
 </script>
 
 </body>

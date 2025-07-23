@@ -211,32 +211,54 @@ async function carregarMetas() {
 
 function mostrarGrafico(metas) {
   const ctx = document.getElementById('graficoFaturamento').getContext('2d');
+
+  // Ordenar por data crescente
+  metas.sort((a, b) => new Date(a.Data) - new Date(b.Data));
+
   const dias = metas.map(m => {
     const partes = m["Data"]?.split("-");
-    return partes ? partes[2] : "";
+    return partes ? `${partes[2]}/${partes[1]}` : "";
   });
+
   const valores = metas.map(m => parseFloat(m["Realizado"].toString().replace(",", ".")));
 
   if (chart) chart.destroy();
+
   chart = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
     data: {
       labels: dias,
       datasets: [{
-        label: 'Faturamento por Dia',
+        label: 'Evolução do Faturamento',
         data: valores,
-        backgroundColor: '#66bb6a'
+        fill: false,
+        borderColor: '#388e3c',
+        tension: 0.1
       }]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { display: false },
-        title: { display: true, text: 'Faturamento diário' }
+        legend: { display: true },
+        title: {
+          display: true,
+          text: 'Evolução diária do faturamento'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return 'R$ ' + value.toLocaleString('pt-BR');
+            }
+          }
+        }
       }
     }
   });
 }
+
 
 function esconderGrafico() {
   if (chart) {

@@ -151,6 +151,7 @@ async function carregarMetas() {
     painel.innerHTML = "";
     if (metas.length === 0) {
       painel.innerHTML = "<p style='text-align:center'>Nenhum dado encontrado.</p>";
+      esconderGrafico();
       return;
     }
 
@@ -184,7 +185,7 @@ async function carregarMetas() {
 
 function mostrarGrafico(metas) {
   const ctx = document.getElementById('graficoFaturamento').getContext('2d');
-  const dias = metas.map(m => m["Data"]);
+  const dias = metas.map(m => m["Data"].split("-")[2]);
   const valores = metas.map(m => parseFloat(m["Realizado"].toString().replace(",", ".")));
 
   if (chart) chart.destroy();

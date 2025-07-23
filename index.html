@@ -4,11 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Metas de Receita - Grupo DV</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f3fdf6;
+      background: #e8f5e9;
       margin: 0;
       padding: 20px;
     }
@@ -16,8 +15,8 @@
       text-align: center;
     }
     .filtros {
-      max-width: 700px;
-      margin: 0 auto 20px;
+      max-width: 600px;
+      margin: 0 auto 10px;
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
@@ -35,11 +34,11 @@
       border: 1px solid #ccc;
     }
     .metas-box {
-      background: #d9f3e4;
+      background: #d0f0d5;
       border-radius: 10px;
       padding: 15px;
       margin: 10px auto;
-      max-width: 700px;
+      max-width: 600px;
       box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
     }
     .metas-box h2 {
@@ -49,19 +48,14 @@
       margin: 3px 0;
       font-size: 0.95em;
     }
-    canvas {
-      max-width: 700px;
-      margin: 10px auto;
-      display: block;
-    }
     #btnWhats {
-      display: block;
-      margin: 20px auto;
-      padding: 10px 15px;
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 16px;
       background-color: #25d366;
       color: white;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 1em;
       cursor: pointer;
     }
@@ -92,49 +86,50 @@
   <button onclick="carregarMetas()">Filtrar</button>
 </div>
 
+<!-- Botão WhatsApp abaixo dos filtros -->
+<div style="text-align: center; margin-top: -10px; margin-bottom: 20px;">
+  <button id="btnWhats">📲 Enviar via WhatsApp</button>
+</div>
+
 <div id="painelMetas"></div>
 
-<canvas id="graficoMetas"></canvas>
-
-<button id="btnWhats">📲 Enviar via WhatsApp</button>
-
 <script>
-const urlBase = 'https://script.google.com/macros/s/AKfycbw_vD564yNLpJS8dLdMWAzuSvtHRipElHLNm7Qv_HTXT-zvCTcIpEr-Wob_xyGFu71x/exec';
+const urlBase = 'https://script.google.com/macros/s/AKfycbw3Jmf7iDyUAQaCX0lx-3NHlSQPwX0b8D7lU9wZ8u_MnZfqSoB1ni9jdqStbj10ywhL/exec'; // Substitua
 
 function formatarNumero(valor) {
   return parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
+
 function formatarDataBR(dataISO) {
   const [y, m, d] = dataISO.split("-");
   return `${d}/${m}/${y}`;
 }
 
-window.onload = () => {
-  const hoje = new Date();
-  const ontem = new Date(hoje.setDate(hoje.getDate() - 1));
-  document.getElementById("dataInicio").value = ontem.toISOString().split('T')[0];
-  document.getElementById("dataFim").value = new Date().toISOString().split('T')[0];
-  carregarMetas();
-};
-
 async function carregarMetas() {
   const painel = document.getElementById("painelMetas");
   painel.innerHTML = "Carregando...";
+
   const dataInicio = document.getElementById("dataInicio").value;
   const dataFim = document.getElementById("dataFim").value;
   const empresa = document.getElementById("empresaFiltro").value;
+
   const hoje = new Date();
+  const ontem = new Date(hoje);
+  ontem.setDate(hoje.getDate() - 1);
+  if (!dataInicio) document.getElementById("dataInicio").value = ontem.toISOString().split('T')[0];
+
   const diaAtual = hoje.getDate();
   const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
 
   const params = new URLSearchParams();
-  if (dataInicio) params.append("dataInicio", dataInicio);
+  if (dataInicio) params.append("dataInicio", document.getElementById("dataInicio").value);
   if (dataFim) params.append("dataFim", dataFim);
   if (empresa) params.append("empresa", empresa);
 
   try {
     const resposta = await fetch(`${urlBase}?${params.toString()}`);
     const metas = await resposta.json();
+
     const empresas = [...new Set(metas.map(m => m.Empresa))];
     const select = document.getElementById("empresaFiltro");
     if (select.options.length <= 1) {
@@ -145,18 +140,19 @@ async function carregarMetas() {
         select.appendChild(opt);
       });
     }
-    painel.innerHTML = "";
-    if (!metas.length) return painel.innerHTML = "<p style='text-align:center'>Nenhum dado encontrado.</p>";
 
-    const graficoLabels = [];
-    const graficoDados = [];
+    painel.innerHTML = "";
+    if (metas.length === 0) {
+      painel.innerHTML = "<p style='text-align:center'>Nenhum dado encontrado.</p>";
+      return;
+    }
 
     metas.forEach(linha => {
       const previsto = parseFloat(linha.Previsto);
-      const realizado = parseFloat(linha.Realizado);
-      const atingido = previsto > 0 ? (realizado / previsto) * 100 : 0;
-      const previsaoFinal = (realizado / diaAtual) * diasNoMes;
-      const previsaoPercentual = previsto > 0 ? (previsaoFinal / previsto) * 100 : 0;
+      const realizado = parseFloat(linha.Realizado.toString().replace(',', '.'));
+      const atingido = linha["Atingido"] || (previsto > 0 ? (realizado / previsto) * 100 : 0);
+      const previsaoFinal = linha["PrevisaoValor"] || ((realizado / diaAtual) * diasNoMes);
+      const previsaoPercentual = linha["PrevisaoPercentual"] || (previsto > 0 ? (previsaoFinal / previsto) * 100 : 0);
 
       const div = document.createElement("div");
       div.className = "metas-box";
@@ -168,29 +164,6 @@ async function carregarMetas() {
         <p>📈 Previsão: R$ ${formatarNumero(previsaoFinal)} (${formatarNumero(previsaoPercentual)}%)</p>
       `;
       painel.appendChild(div);
-      graficoLabels.push(linha.Empresa);
-      graficoDados.push(atingido.toFixed(2));
-    });
-
-    new Chart(document.getElementById("graficoMetas"), {
-      type: 'bar',
-      data: {
-        labels: graficoLabels,
-        datasets: [{
-          label: '% Atingido',
-          data: graficoDados,
-          backgroundColor: '#4caf50'
-        }]
-      },
-      options: {
-        scales: {
-          y: { beginAtZero: true, max: 120 }
-        },
-        plugins: {
-          legend: { display: false },
-          title: { display: true, text: 'Atingimento das Metas (%)' }
-        }
-      }
     });
 
   } catch (e) {
@@ -202,19 +175,27 @@ async function carregarMetas() {
 document.getElementById("btnWhats").addEventListener("click", () => {
   const dataInicio = document.getElementById("dataInicio").value;
   const dataFim = document.getElementById("dataFim").value;
-  const periodo = `${formatarDataBR(dataInicio)} - ${formatarDataBR(dataFim)}`;
+  const periodo = (dataInicio && dataFim)
+    ? `${formatarDataBR(dataInicio)} - ${formatarDataBR(dataFim)}`
+    : "Período não informado";
+
   const blocos = document.querySelectorAll(".metas-box");
   if (!blocos.length) return alert("Nenhum dado para enviar.");
+
   let mensagem = `📆 Resumo da meta de receitas ${periodo}\n\n`;
+
   blocos.forEach(box => {
     const titulo = box.querySelector("h2").innerText;
     const linhas = [...box.querySelectorAll("p")].map(p => p.innerText).join("\n");
-    mensagem += `${titulo}\n${linhas}\n\n`;
+    mensagem += `*${titulo}*\n${linhas}\n\n`;
   });
-  const numero = "5511999999999"; // Substitua com seu número de WhatsApp
+
+  const numero = "5577999761436"; // Substitua
   const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem.trim())}`;
   window.open(link, "_blank");
 });
+
+carregarMetas();
 </script>
 
 </body>

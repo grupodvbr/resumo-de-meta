@@ -43,7 +43,7 @@
       border-radius: 8px;
       cursor: pointer;
       display: block;
-      margin: 10px auto 20px;
+      margin: 10px auto 10px;
     }
     .metas-box {
       background: #d0f0d5;
@@ -185,7 +185,10 @@ async function carregarMetas() {
 
 function mostrarGrafico(metas) {
   const ctx = document.getElementById('graficoFaturamento').getContext('2d');
-  const dias = metas.map(m => m["Data"]?.split("-")[2]);
+  const dias = metas.map(m => {
+    const partes = m["Data"]?.split("-");
+    return partes ? partes[2] : "";
+  });
   const valores = metas.map(m => parseFloat(m["Realizado"].toString().replace(",", ".")));
 
   if (chart) chart.destroy();

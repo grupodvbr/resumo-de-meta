@@ -116,6 +116,27 @@ function preencherDataOntem() {
   document.getElementById("dataFim").value = data;
 }
 
+function isDiaUtil(data) {
+  const feriados = [
+    '2025-01-01', '2025-04-21', '2025-05-01', '2025-09-07',
+    '2025-10-12', '2025-11-02', '2025-11-15', '2025-12-25'
+  ].map(f => new Date(f));
+  const dia = data.getDay();
+  const ehFds = dia === 0 || dia === 6;
+  const ehFeriado = feriados.some(f => f.toDateString() === data.toDateString());
+  return !ehFds && !ehFeriado;
+}
+
+function contarDiasUteis(inicio, fim) {
+  let count = 0;
+  let data = new Date(inicio);
+  while (data <= fim) {
+    if (isDiaUtil(data)) count++;
+    data.setDate(data.getDate() + 1);
+  }
+  return count;
+}
+
 async function carregarMetas() {
   const painel = document.getElementById("painelMetas");
   painel.innerHTML = "Carregando...";
@@ -125,8 +146,11 @@ async function carregarMetas() {
   const empresa = document.getElementById("empresaFiltro").value;
 
   const hoje = new Date();
-  const diaAtual = hoje.getDate();
-  const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+  const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+
+  const diasUteisNoMes = contarDiasUteis(primeiroDiaMes, ultimoDiaMes);
+  const diasUteisAteHoje = contarDiasUteis(primeiroDiaMes, hoje);
 
   const params = new URLSearchParams();
   if (dataInicio) params.append("dataInicio", dataInicio);
@@ -159,7 +183,7 @@ async function carregarMetas() {
       const previsto = parseFloat(linha["Previsto"]);
       const realizado = parseFloat(linha["Realizado"].toString().replace(",", "."));
       const atingido = previsto > 0 ? (realizado / previsto) * 100 : 0;
-      const previsaoFinal = (realizado / diaAtual) * diasNoMes;
+      const previsaoFinal = (realizado / diasUteisAteHoje) * diasUteisNoMes;
       const previsaoPercentual = previsto > 0 ? (previsaoFinal / previsto) * 100 : 0;
 
       const div = document.createElement("div");
@@ -174,32 +198,6 @@ async function carregarMetas() {
       painel.appendChild(div);
     });
 
-    // Cálculo de evolução entre dois dias
-    if (dataInicio && dataFim && dataInicio !== dataFim) {
-      const empresas = [...new Set(metas.map(m => m.Empresa))];
-      const diasUnicos = [...new Set(metas.map(m => m.Data))].sort();
-
-      if (diasUnicos.length === 2) {
-        const [dia1, dia2] = diasUnicos;
-        empresas.forEach(empresa => {
-          const total1 = metas.filter(m => m.Empresa === empresa && m.Data === dia1).reduce((soma, m) => soma + parseFloat(m.Realizado.toString().replace(",", ".")), 0);
-          const total2 = metas.filter(m => m.Empresa === empresa && m.Data === dia2).reduce((soma, m) => soma + parseFloat(m.Realizado.toString().replace(",", ".")), 0);
-          const evolucao = total2 - total1;
-          const perc = total1 > 0 ? (evolucao / total1) * 100 : 0;
-
-          const box = document.createElement("div");
-          box.className = "metas-box";
-          box.innerHTML = `
-            <h2>${empresa} 📈 Evolução Diária</h2>
-            <p>🗓️ ${formatarDataBR(dia1)} → ${formatarDataBR(dia2)}</p>
-            <p>📉 Diferença: R$ ${formatarNumero(evolucao)}</p>
-            <p>📊 Variação: ${formatarNumero(perc)}%</p>
-          `;
-          painel.appendChild(box);
-        });
-      }
-    }
-
     if (empresa) mostrarGrafico(metas);
     else esconderGrafico();
 
@@ -211,15 +209,8 @@ async function carregarMetas() {
 
 function mostrarGrafico(metas) {
   const ctx = document.getElementById('graficoFaturamento').getContext('2d');
-
-  // Ordenar por data crescente
   metas.sort((a, b) => new Date(a.Data) - new Date(b.Data));
-
-  const dias = metas.map(m => {
-    const partes = m["Data"]?.split("-");
-    return partes ? `${partes[2]}/${partes[1]}` : "";
-  });
-
+  const dias = metas.map(m => m["Data"]?.split("-").reverse().join("/"));
   const valores = metas.map(m => parseFloat(m["Realizado"].toString().replace(",", ".")));
 
   if (chart) chart.destroy();
@@ -258,7 +249,6 @@ function mostrarGrafico(metas) {
     }
   });
 }
-
 
 function esconderGrafico() {
   if (chart) {

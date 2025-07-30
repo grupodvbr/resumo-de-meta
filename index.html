@@ -124,9 +124,9 @@ async function carregarMetas() {
   const dataFim = document.getElementById("dataFim").value;
   const empresa = document.getElementById("empresaFiltro").value;
 
-  // Cálculo dos dias corridos com base no mês da data final
+  // Cálculo baseado na data final
   let diasCorridosNoMes = 30;
-  let diasCorridosAteFim = 30;
+  let diasCorridosAteData = 30;
 
   if (dataFim) {
     const dataRef = new Date(dataFim);
@@ -134,7 +134,7 @@ async function carregarMetas() {
     const anoRef = dataRef.getFullYear();
     const ultimoDiaMesRef = new Date(anoRef, mesRef + 1, 0);
     diasCorridosNoMes = ultimoDiaMesRef.getDate();
-    diasCorridosAteFim = Math.min(dataRef.getDate(), diasCorridosNoMes);
+    diasCorridosAteData = Math.min(dataRef.getDate(), diasCorridosNoMes);
   }
 
   const params = new URLSearchParams();
@@ -168,7 +168,8 @@ async function carregarMetas() {
       const previsto = parseFloat(linha["Previsto"]);
       const realizado = parseFloat(linha["Realizado"].toString().replace(",", "."));
       const atingido = previsto > 0 ? (realizado / previsto) * 100 : 0;
-      const previsaoFinal = (realizado / diasCorridosAteFim) * diasCorridosNoMes;
+      const mediaDiaria = realizado / diasCorridosAteData;
+      const previsaoFinal = mediaDiaria * diasCorridosNoMes;
       const previsaoPercentual = previsto > 0 ? (previsaoFinal / previsto) * 100 : 0;
 
       const div = document.createElement("div");

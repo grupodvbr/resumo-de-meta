@@ -68,7 +68,7 @@
 </head>
 <body>
 
-<h1>📊 Painel de Metas    Grupo DV</h1>
+<h1>📊 Painel de Metas - Grupo DV</h1>
 
 <div class="filtros">
   <label>
@@ -116,27 +116,6 @@ function preencherDataOntem() {
   document.getElementById("dataFim").value = data;
 }
 
-function isDiaUtil(data) {
-  const feriados = [
-    '2025-01-01', '2025-04-21', '2025-05-01', '2025-09-07',
-    '2025-10-12', '2025-11-02', '2025-11-15', '2025-12-25'
-  ].map(f => new Date(f));
-  const dia = data.getDay();
-  const ehFds = dia === 0 || dia === 6;
-  const ehFeriado = feriados.some(f => f.toDateString() === data.toDateString());
-  return !ehFds && !ehFeriado;
-}
-
-function contarDiasUteis(inicio, fim) {
-  let count = 0;
-  let data = new Date(inicio);
-  while (data <= fim) {
-    if (isDiaUtil(data)) count++;
-    data.setDate(data.getDate() + 1);
-  }
-  return count;
-}
-
 async function carregarMetas() {
   const painel = document.getElementById("painelMetas");
   painel.innerHTML = "Carregando...";
@@ -149,8 +128,8 @@ async function carregarMetas() {
   const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
 
-  const diasUteisNoMes = contarDiasUteis(primeiroDiaMes, ultimoDiaMes);
-  const diasUteisAteHoje = contarDiasUteis(primeiroDiaMes, hoje);
+  const diasCorridosNoMes = ultimoDiaMes.getDate(); // ex: 31
+  const diasCorridosAteHoje = hoje.getDate();       // ex: 29
 
   const params = new URLSearchParams();
   if (dataInicio) params.append("dataInicio", dataInicio);
@@ -183,7 +162,7 @@ async function carregarMetas() {
       const previsto = parseFloat(linha["Previsto"]);
       const realizado = parseFloat(linha["Realizado"].toString().replace(",", "."));
       const atingido = previsto > 0 ? (realizado / previsto) * 100 : 0;
-      const previsaoFinal = (realizado / diasUteisAteHoje) * diasUteisNoMes;
+      const previsaoFinal = (realizado / diasCorridosAteHoje) * diasCorridosNoMes;
       const previsaoPercentual = previsto > 0 ? (previsaoFinal / previsto) * 100 : 0;
 
       const div = document.createElement("div");

@@ -68,7 +68,7 @@
 </head>
 <body>
 
-<h1>📊 Painel de Metas   Grupo DV</h1>
+<h1>📊 Painel de Metas - Grupo DV</h1>
 
 <div class="filtros">
   <label>
@@ -124,13 +124,18 @@ async function carregarMetas() {
   const dataFim = document.getElementById("dataFim").value;
   const empresa = document.getElementById("empresaFiltro").value;
 
-  const hoje = new Date();
-  const mesVigente = new Date(); // Sempre o mês atual
-  const primeiroDiaMes = new Date(mesVigente.getFullYear(), mesVigente.getMonth(), 1);
-  const ultimoDiaMes = new Date(mesVigente.getFullYear(), mesVigente.getMonth() + 1, 0);
+  // Cálculo dos dias corridos com base no mês da data final
+  let diasCorridosNoMes = 30;
+  let diasCorridosAteFim = 30;
 
-  const diasCorridosNoMes = ultimoDiaMes.getDate(); // ex: 31
-  const diasCorridosAteHoje = hoje.getDate();       // ex: 29
+  if (dataFim) {
+    const dataRef = new Date(dataFim);
+    const mesRef = dataRef.getMonth();
+    const anoRef = dataRef.getFullYear();
+    const ultimoDiaMesRef = new Date(anoRef, mesRef + 1, 0);
+    diasCorridosNoMes = ultimoDiaMesRef.getDate();
+    diasCorridosAteFim = Math.min(dataRef.getDate(), diasCorridosNoMes);
+  }
 
   const params = new URLSearchParams();
   if (dataInicio) params.append("dataInicio", dataInicio);
@@ -163,7 +168,7 @@ async function carregarMetas() {
       const previsto = parseFloat(linha["Previsto"]);
       const realizado = parseFloat(linha["Realizado"].toString().replace(",", "."));
       const atingido = previsto > 0 ? (realizado / previsto) * 100 : 0;
-      const previsaoFinal = (realizado / diasCorridosAteHoje) * diasCorridosNoMes;
+      const previsaoFinal = (realizado / diasCorridosAteFim) * diasCorridosNoMes;
       const previsaoPercentual = previsto > 0 ? (previsaoFinal / previsto) * 100 : 0;
 
       const div = document.createElement("div");

@@ -125,8 +125,9 @@ async function carregarMetas() {
   const empresa = document.getElementById("empresaFiltro").value;
 
   const hoje = new Date();
-  const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-  const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+  const mesVigente = new Date(); // Sempre o mês atual
+  const primeiroDiaMes = new Date(mesVigente.getFullYear(), mesVigente.getMonth(), 1);
+  const ultimoDiaMes = new Date(mesVigente.getFullYear(), mesVigente.getMonth() + 1, 0);
 
   const diasCorridosNoMes = ultimoDiaMes.getDate(); // ex: 31
   const diasCorridosAteHoje = hoje.getDate();       // ex: 29
